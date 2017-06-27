@@ -53,17 +53,18 @@ step g = fromMaybe (return g) $ do
 
 -- | Possibly die if next head position is disallowed
 die :: Game -> Maybe (IO Game)
-die g = ifThenJust
-          (nh g `elem` g ^. snake || outOfBounds (nh g))
-          (return $ g & dead .~ True)
+die g = (bodyHit || borderHit)
+          `thenJust` (return $ g & dead .~ True)
+  where bodyHit   = nh g `elem` g ^. snake
+        borderHit = outOfBounds (nh g)
 
 -- | Possibly eat food if next head position is food
 eatFood :: Game -> Maybe (IO Game)
-eatFood g = ifThenJust (nh g == g ^. food) $ do
-  let ng = g & score %~ (+10)
-             & snake %~ (nh g <|)
-  nf <- nextFood ng
-  return $ ng & food .~ nf
+eatFood g = (nh g == g ^. food) `thenJust` do
+    let ng = g & score %~ (+10)
+               & snake %~ (nh g <|)
+    nf <- nextFood ng
+    return $ ng & food .~ nf
 
 -- | Move snake along in a marquee fashion
 move :: Game -> Maybe (IO Game)
@@ -130,6 +131,6 @@ initGame = do
 
 -- Utilities
 
-ifThenJust :: Bool -> a -> Maybe a
-ifThenJust True  = Just
-ifThenJust False = const Nothing
+thenJust :: Bool -> a -> Maybe a
+thenJust True  = Just
+thenJust False = const Nothing
