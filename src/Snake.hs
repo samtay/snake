@@ -49,26 +49,29 @@ step :: Game -> IO Game
 step g = fromMaybe (return g) $ do
   guard (not $ g ^. paused || g ^. dead)
   let g' = g & frozen .~ False
-  die g' <|> eatFood g' <|> move g'
+  (pure <$> die g') <|> eatFood g' <|> (pure <$> move g')
 
 -- | Possibly die if next head position is disallowed
-die :: Game -> Maybe (IO Game)
-die g = (bodyHit || borderHit)
-          `thenJust` (return $ g & dead .~ True)
+die :: Game -> Maybe Game
+die g = do
+  guard (bodyHit || borderHit)
+  return $ g & dead .~ True
   where bodyHit   = nh g `elem` g ^. snake
         borderHit = outOfBounds (nh g)
 
 -- | Possibly eat food if next head position is food
 eatFood :: Game -> Maybe (IO Game)
-eatFood g = (nh g == g ^. food) `thenJust` do
+eatFood g = do
+  guard (nh g == g ^. food)
+  return $ do
     let ng = g & score %~ (+10)
                & snake %~ (nh g <|)
     nf <- nextFood ng
     return $ ng & food .~ nf
 
 -- | Move snake along in a marquee fashion
-move :: Game -> Maybe (IO Game)
-move g = Just . return $ g & snake %~ (mv . S.viewr)
+move :: Game -> Maybe Game
+move g = Just $ g & snake %~ (mv . S.viewr)
   where
     mv (EmptyR) = error "Snakes can't be empty!"
     mv (s :> _) = nh g <| s
@@ -128,9 +131,3 @@ initGame = do
                , _dead = False, _paused = True , _frozen = False }
   nf <- nextFood g
   return $ g & food .~ nf
-
--- Utilities
-
-thenJust :: Bool -> a -> Maybe a
-thenJust True  = Just
-thenJust False = const Nothing
