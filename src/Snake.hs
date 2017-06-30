@@ -55,10 +55,8 @@ step g = fromMaybe g $ do
 -- | Possibly die if next head position is disallowed
 die :: Game -> Maybe Game
 die g = do
-  guard (bodyHit || borderHit)
+  guard (nh g `elem` g ^. snake)
   return $ g & dead .~ True
-  where bodyHit   = nh g `elem` g ^. snake
-        borderHit = outOfBounds (nh g)
 
 -- | Possibly eat food if next head position is food
 eatFood :: Game -> Maybe Game
@@ -94,10 +92,10 @@ nextHead d = go . S.viewl
   where
     go (EmptyL) = error "Snakes can't be empty!"
     go (a :< _)
-      | d == North = a & _y %~ (+1)
-      | d == South = a & _y %~ (subtract 1)
-      | d == East  = a & _x %~ (+1)
-      | d == West  = a & _x %~ (subtract 1)
+      | d == North = a & _y %~ (\y -> (y + 1) `mod` height)
+      | d == South = a & _y %~ (\y -> (y - 1) `mod` height)
+      | d == East  = a & _x %~ (\x -> (x + 1) `mod` width)
+      | d == West  = a & _x %~ (\x -> (x - 1) `mod` width)
 
 -- | Turn game direction (only turns orthogonally)
 --
@@ -116,13 +114,10 @@ turnDir n c
   | c `elem` [East, West] && n `elem` [North, South] = n
   | otherwise                             = c
 
-outOfBounds :: Coord -> Bool
-outOfBounds c = any (< 1) c || c ^. _x > width || c ^. _y > height
-
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
-  (f : fs) <- randomRs (V2 1 1, V2 width height) <$> newStdGen
+  (f : fs) <- randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
   return Game { _snake = (S.singleton (V2 10 10)) , _dir = North
                , _food = f, _foods = fs, _score = 0
                , _dead = False, _paused = True , _frozen = False }
