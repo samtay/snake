@@ -10,18 +10,19 @@ import qualified Data.Sequence as S
 import Lens.Micro.TH (makeLenses)
 import Lens.Micro ((&), (.~), (%~), (^.))
 import Linear.V2 (V2(..), _x, _y)
-import System.Random (randomRIO)
+import System.Random (Random(..), newStdGen)
 
 -- Types
 
 data Game = Game
-  { _snake  :: Snake     -- ^ snake as a sequence of points in R2
-  , _dir    :: Direction -- ^ direction
-  , _food   :: Coord     -- ^ location of the food
-  , _dead   :: Bool      -- ^ game over flag
-  , _paused :: Bool      -- ^ paused flag
-  , _score  :: Int       -- ^ score
-  , _frozen :: Bool      -- ^ freeze to disallow duplicate turns between time steps
+  { _snake  :: Snake      -- ^ snake as a sequence of points in R2
+  , _dir    :: Direction  -- ^ direction
+  , _food   :: Coord      -- ^ location of the food
+  , _foods  :: [Coord]    -- ^ infinite list of random next food locations
+  , _dead   :: Bool       -- ^ game over flag
+  , _paused :: Bool       -- ^ paused flag
+  , _score  :: Int        -- ^ score
+  , _frozen :: Bool       -- ^ freeze to disallow duplicate turns between time steps
   } deriving (Eq, Show)
 
 type Coord = V2 Int
@@ -45,11 +46,11 @@ width  = 20
 -- Functions
 
 -- | Step forward in time
-step :: Game -> IO Game
-step g = fromMaybe (return g) $ do
+step :: Game -> Game
+step g = fromMaybe g $ do
   guard (not $ g ^. paused || g ^. dead)
   let g' = g & frozen .~ False
-  (pure <$> die g') <|> eatFood g' <|> (pure <$> move g')
+  die g' <|> eatFood g' <|> Just (move g')
 
 -- | Possibly die if next head position is disallowed
 die :: Game -> Maybe Game
@@ -60,18 +61,25 @@ die g = do
         borderHit = outOfBounds (nh g)
 
 -- | Possibly eat food if next head position is food
-eatFood :: Game -> Maybe (IO Game)
+eatFood :: Game -> Maybe Game
 eatFood g = do
   guard (nh g == g ^. food)
-  return $ do
-    let ng = g & score %~ (+10)
-               & snake %~ (nh g <|)
-    nf <- nextFood ng
-    return $ ng & food .~ nf
+  let g' = g & score %~ (+10)
+             & snake %~ (nh g <|)
+  return (nextFood g')
+
+-- | Set a valid next food coordinate
+nextFood :: Game -> Game
+nextFood g =
+  let (f:fs) = g ^. foods
+   in if (f `elem` g ^. snake)
+         then nextFood (g & foods .~ fs)
+         else g & foods .~ fs
+                & food  .~ f
 
 -- | Move snake along in a marquee fashion
-move :: Game -> Maybe Game
-move g = Just $ g & snake %~ (mv . S.viewr)
+move :: Game -> Game
+move g = g & snake %~ (mv . S.viewr)
   where
     mv (EmptyR) = error "Snakes can't be empty!"
     mv (s :> _) = nh g <| s
@@ -111,23 +119,20 @@ turnDir n c
 outOfBounds :: Coord -> Bool
 outOfBounds c = any (< 1) c || c ^. _x > width || c ^. _y > height
 
--- | Get a valid next food coordinate
-nextFood :: Game -> IO Coord
-nextFood g = do
-  c <- randomCoord
-  if (c `elem` g ^. snake)
-     then nextFood g
-     else return c
-
-randomCoord :: IO Coord
-randomCoord = V2 <$> randomRIO (1, width)
-                 <*> randomRIO (1, height)
-
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
-  let g = Game { _snake = (S.singleton (V2 10 10)) , _dir = North
-               , _food = (V2 0 0), _score = 0
+  (f : fs) <- randomRs (V2 1 1, V2 width height) <$> newStdGen
+  return Game { _snake = (S.singleton (V2 10 10)) , _dir = North
+               , _food = f, _foods = fs, _score = 0
                , _dead = False, _paused = True , _frozen = False }
-  nf <- nextFood g
-  return $ g & food .~ nf
+
+instance Random a => Random (V2 a) where
+  randomR (V2 x1 y1, V2 x2 y2) g =
+    let (x, g')  = randomR (x1, x2) g
+        (y, g'') = randomR (y1, y2) g'
+     in (V2 x y, g'')
+  random g =
+    let (x, g')  = random g
+        (y, g'') = random g'
+     in (V2 x y, g'')
