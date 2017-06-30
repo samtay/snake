@@ -118,9 +118,14 @@ turnDir n c
 initGame :: IO Game
 initGame = do
   (f : fs) <- randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
-  return Game { _snake = (S.singleton (V2 10 10)) , _dir = North
-               , _food = f, _foods = fs, _score = 0
-               , _dead = False, _paused = True , _frozen = False }
+  let xm = width `div` 2
+      ym = height `div` 2
+      g  = Game { _snake = (S.singleton (V2 xm ym))
+                , _food = f, _foods = fs
+                , _score = 0
+                , _dir = North
+                , _dead = False, _paused = True , _frozen = False }
+  return $ nextFood g
 
 instance Random a => Random (V2 a) where
   randomR (V2 x1 y1, V2 x2 y2) g =
