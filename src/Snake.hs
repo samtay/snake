@@ -15,18 +15,20 @@ import System.Random (Random(..), newStdGen)
 -- Types
 
 data Game = Game
-  { _snake  :: Snake      -- ^ snake as a sequence of points in R2
-  , _dir    :: Direction  -- ^ direction
-  , _food   :: Coord      -- ^ location of the food
-  , _foods  :: [Coord]    -- ^ infinite list of random next food locations
-  , _dead   :: Bool       -- ^ game over flag
-  , _paused :: Bool       -- ^ paused flag
-  , _score  :: Int        -- ^ score
-  , _frozen :: Bool       -- ^ freeze to disallow duplicate turns between time steps
-  } deriving (Eq, Show)
+  { _snake  :: Snake        -- ^ snake as a sequence of points in R2
+  , _dir    :: Direction    -- ^ direction
+  , _food   :: Coord        -- ^ location of the food
+  , _foods  :: Stream Coord -- ^ infinite list of random next food locations
+  , _dead   :: Bool         -- ^ game over flag
+  , _paused :: Bool         -- ^ paused flag
+  , _score  :: Int          -- ^ score
+  , _frozen :: Bool         -- ^ freeze to disallow duplicate turns between time steps
+  } deriving (Show)
 
 type Coord = V2 Int
 type Snake = Seq Coord
+data Stream a = a :| Stream a
+  deriving (Show)
 
 data Direction
   = North
@@ -69,7 +71,7 @@ eatFood g = do
 -- | Set a valid next food coordinate
 nextFood :: Game -> Game
 nextFood g =
-  let (f:fs) = g ^. foods
+  let (f :| fs) = g ^. foods
    in if (f `elem` g ^. snake)
          then nextFood (g & foods .~ fs)
          else g & foods .~ fs
@@ -117,7 +119,7 @@ turnDir n c
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
-  (f : fs) <- randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
+  (f :| fs) <- fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
   let xm = width `div` 2
       ym = height `div` 2
       g  = Game { _snake = (S.singleton (V2 xm ym))
@@ -136,3 +138,8 @@ instance Random a => Random (V2 a) where
     let (x, g')  = random g
         (y, g'') = random g'
      in (V2 x y, g'')
+
+fromList :: [a] -> Stream a
+fromList []     = error "Streams cannot be empty"
+fromList [x]    = x :| fromList [x]
+fromList (x:xs) = x :| fromList xs
