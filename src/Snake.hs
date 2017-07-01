@@ -52,7 +52,7 @@ step :: Game -> Game
 step g = fromMaybe g $ do
   guard (not $ g ^. paused || g ^. dead)
   let g' = g & frozen .~ False
-  die g' <|> eatFood g' <|> Just (move g')
+  return . fromMaybe (move g') $ die g' <|> eatFood g'
 
 -- | Possibly die if next head position is disallowed
 die :: Game -> Maybe Game
@@ -140,5 +140,4 @@ instance Random a => Random (V2 a) where
      in (V2 x y, g'')
 
 fromList :: [a] -> Stream a
-fromList []     = error "Streams cannot be empty"
-fromList (x:xs) = x :| fromList xs
+fromList = foldr (:|) (error "Streams must be infinite")
