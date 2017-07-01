@@ -141,5 +141,4 @@ instance Random a => Random (V2 a) where
 
 fromList :: [a] -> Stream a
 fromList []     = error "Streams cannot be empty"
-fromList [x]    = x :| fromList [x]
 fromList (x:xs) = x :| fromList xs
