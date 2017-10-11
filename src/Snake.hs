@@ -15,7 +15,7 @@ import System.Random (Random(..), newStdGen)
 -- Types
 
 data Game = Game
-  { _snake  :: Snake        -- ^ snake as a sequence of points in R2
+  { _snake  :: Snake        -- ^ snake as a sequence of points in N2
   , _dir    :: Direction    -- ^ direction
   , _food   :: Coord        -- ^ location of the food
   , _foods  :: Stream Coord -- ^ infinite list of random next food locations
