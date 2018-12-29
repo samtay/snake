@@ -23,11 +23,11 @@ import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
+import Control.Lens ((^.))
 import qualified Graphics.Vty as V
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..))
-import Lens.Micro ((^.))
 
 -- Types
 
