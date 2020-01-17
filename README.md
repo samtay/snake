@@ -7,7 +7,7 @@ A terminal interface for Snake. This is kind of a toy program, written as a demo
   <img src="./docs/img/example.gif"/>
 </p>
 
-It is part of my [Introduction to Brick](http://samtay.github.io/articles/brick.html)
+It is part of my [Introduction to Brick](https://samtay.github.io/posts/brick)
 tutorial. Feel free to leave issues here or on
 [samtay/samtay.github.io](https://github.com/samtay/samtay.github.io)
 if you spot any issues or want to leave feedback.
