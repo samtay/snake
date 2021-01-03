@@ -20,12 +20,12 @@ executable snake
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-  build-depends:       base         >= 4.7 && < 5
-                     , brick
-                     , containers
-                     , extra
-                     , linear
-                     , lens
-                     , random
-                     , transformers
-                     , vty
+  build-depends:       base                 >= 4.7 && < 5,
+                       brick                >= 0.57.1 && < 0.58,
+                       containers           >= 0.6.2 && < 0.7,
+                       transformers         >= 0.5.6 && < 0.6,
+                       random               >= 1.2.0 && < 1.3,
+                       vty                  >= 5.32 && < 5.33,
+                       extra                >= 1.7.8 && < 1.8,
+                       lens                 >= 4.19.2 && < 4.20,
+                       linear               >= 1.21.3 && < 1.22
