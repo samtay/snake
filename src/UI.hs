@@ -61,8 +61,7 @@ main = do
     writeBChan chan Tick
     threadDelay 100000 -- decides how fast your game moves
   g <- initGame
-  vty <- V.standardIOConfig >>= V.mkVty
-  void $ customMain vty (V.mkVty V.defaultConfig) (Just chan) app g
+  void $ customMain (V.mkVty V.defaultConfig) (Just chan) app g
 
 -- Handling events
 
