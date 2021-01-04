@@ -144,5 +144,15 @@ initGame = do
         }
   return $ execState nextFood g
 
+instance Random a => Random (V2 a) where
+  randomR (V2 x1 y1, V2 x2 y2) g =
+    let (x, g')  = randomR (x1, x2) g
+        (y, g'') = randomR (y1, y2) g'
+     in (V2 x y, g'')
+  random g =
+    let (x, g')  = random g
+        (y, g'') = random g'
+     in (V2 x y, g'')
+
 fromList :: [a] -> Stream a
 fromList = foldr (:|) (error "Streams must be infinite")
