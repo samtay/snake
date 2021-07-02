@@ -31,4 +31,4 @@ If you are on Debian and want to install via package manager, feel free to open 
 
 ## playing the game
 
-After launching the game, simply press any of the arrow keys to start the snake moving.  Arrow keys change the snake's direction.
+After launching the game, press any of the arrow keys or the letters 'k', 'j', 'l', or 'h' to start the game.
