@@ -28,3 +28,7 @@ cd snake
 stack install snake
 ```
 If you are on Debian and want to install via package manager, feel free to open an issue and I'll try to get around to it.
+
+## playing the game
+
+After launching the game, simply press any of the arrow keys to start the snake moving.  Arrow keys change the snake's direction.
