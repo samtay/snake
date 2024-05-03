@@ -1,4 +1,4 @@
-# snake
+# snake [![Build Status](https://github.com/samtay/snake/actions/workflows/ci.yaml/badge.svg)](https://github.com/samtay/snake/actions/workflows/ci.yaml)
 
 A terminal interface for Snake. This is kind of a toy program, written as a demonstration of the
 [brick](https://hackage.haskell.org/package/brick-0.18) library.
