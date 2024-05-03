@@ -24,6 +24,8 @@ executable snake
                      , extra
                      , linear
                      , lens
+                     , mtl
                      , random
                      , transformers
                      , vty
+                     , vty-crossplatform

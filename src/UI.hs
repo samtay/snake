@@ -3,20 +3,21 @@ module UI where
 
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.State.Class (put)
 import Control.Concurrent (threadDelay, forkIO)
 import Data.Maybe (fromMaybe)
 
 import Snake
 
 import Brick
-  ( App(..), AttrMap, BrickEvent(..), EventM, Next, Widget
+  ( App(..), AttrMap, BrickEvent(..), EventM, Widget
   , customMain, neverShowCursor
-  , continue, halt
+  , halt
   , hLimit, vLimit, vBox, hBox
   , padRight, padLeft, padTop, padAll, Padding(..)
   , withBorderStyle
   , str
-  , attrMap, withAttr, emptyWidget, AttrName, on, fg
+  , attrName, attrMap, withAttr, emptyWidget, AttrName, on, fg
   , (<+>)
   )
 import Brick.BChan (newBChan, writeBChan)
@@ -25,6 +26,8 @@ import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 import Control.Lens ((^.))
 import qualified Graphics.Vty as V
+import qualified Graphics.Vty.CrossPlatform
+import qualified Graphics.Vty.Config
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..))
@@ -50,7 +53,7 @@ app :: App Game Tick Name
 app = App { appDraw = drawUI
           , appChooseCursor = neverShowCursor
           , appHandleEvent = handleEvent
-          , appStartEvent = return
+          , appStartEvent = pure ()
           , appAttrMap = const theMap
           }
 
@@ -61,26 +64,26 @@ main = do
     writeBChan chan Tick
     threadDelay 100000 -- decides how fast your game moves
   g <- initGame
-  let builder = V.mkVty V.defaultConfig
-  initialVty <- builder
-  void $ customMain initialVty builder (Just chan) app g
+  let buildVty = Graphics.Vty.CrossPlatform.mkVty Graphics.Vty.Config.defaultConfig
+  initialVty <- buildVty
+  void $ customMain initialVty buildVty (Just chan) app g
 
 -- Handling events
 
-handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
-handleEvent g (AppEvent Tick)                       = continue $ step g
-handleEvent g (VtyEvent (V.EvKey V.KUp []))         = continue $ turn North g
-handleEvent g (VtyEvent (V.EvKey V.KDown []))       = continue $ turn South g
-handleEvent g (VtyEvent (V.EvKey V.KRight []))      = continue $ turn East g
-handleEvent g (VtyEvent (V.EvKey V.KLeft []))       = continue $ turn West g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'k') [])) = continue $ turn North g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'j') [])) = continue $ turn South g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'l') [])) = continue $ turn East g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'h') [])) = continue $ turn West g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame) >>= continue
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
-handleEvent g (VtyEvent (V.EvKey V.KEsc []))        = halt g
-handleEvent g _                                     = continue g
+handleEvent :: BrickEvent Name Tick -> EventM Name Game ()
+handleEvent (AppEvent Tick)                       = step
+handleEvent (VtyEvent (V.EvKey V.KUp []))         = turn North
+handleEvent (VtyEvent (V.EvKey V.KDown []))       = turn South
+handleEvent (VtyEvent (V.EvKey V.KRight []))      = turn East
+handleEvent (VtyEvent (V.EvKey V.KLeft []))       = turn West
+handleEvent (VtyEvent (V.EvKey (V.KChar 'k') [])) = turn North
+handleEvent (VtyEvent (V.EvKey (V.KChar 'j') [])) = turn South
+handleEvent (VtyEvent (V.EvKey (V.KChar 'l') [])) = turn East
+handleEvent (VtyEvent (V.EvKey (V.KChar 'h') [])) = turn West
+handleEvent (VtyEvent (V.EvKey (V.KChar 'r') [])) = initGame >>= put
+handleEvent (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt
+handleEvent (VtyEvent (V.EvKey V.KEsc []))        = halt
+handleEvent _                                     = pure ()
 
 -- Drawing
 
@@ -136,9 +139,9 @@ theMap = attrMap V.defAttr
   ]
 
 gameOverAttr :: AttrName
-gameOverAttr = "gameOver"
+gameOverAttr = attrName "gameOver"
 
 snakeAttr, foodAttr, emptyAttr :: AttrName
-snakeAttr = "snakeAttr"
-foodAttr = "foodAttr"
-emptyAttr = "emptyAttr"
+snakeAttr = attrName "snakeAttr"
+foodAttr = attrName "foodAttr"
+emptyAttr = attrName "emptyAttr"

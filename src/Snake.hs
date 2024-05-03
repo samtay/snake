@@ -12,14 +12,16 @@ module Snake
   ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
+import Control.Monad (guard, void)
 import Data.Maybe (fromMaybe)
 
-import Control.Lens hiding ((<|), (|>), (:>), (:<))
+import Control.Lens hiding ((<|), (|>), (:>), (:<), index)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.State.Class (MonadState, modify, get)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.State
-import Control.Monad.Extra (orM)
-import Data.Sequence (Seq(..), (<|))
+import Control.Monad.Trans.State (execState)
+import Control.Monad.Extra (orM, unlessM)
+import Data.Sequence (Seq(..), (<|), index)
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..), _x, _y)
 import System.Random (Random(..), newStdGen)
@@ -62,8 +64,8 @@ width = 20
 -- Functions
 
 -- | Step forward in time
-step :: Game -> Game
-step s = flip execState s . runMaybeT $ do
+step :: MonadState Game m => m ()
+step = void . runMaybeT $ do
 
   -- Make sure the game isn't paused or over
   MaybeT $ guard . not <$> orM [use paused, use dead]
@@ -71,26 +73,27 @@ step s = flip execState s . runMaybeT $ do
   -- Unlock from last directional turn
   MaybeT . fmap Just $ locked .= False
 
-  -- die (moved into boundary), eat (moved into food), or move (move into space)
-  die <|> eatFood <|> MaybeT (Just <$> modify move)
+  -- die (moved into self), eat (moved into food), or move (move into space)
+  die <|> eatFood <|> MaybeT (Just <$> move)
 
 -- | Possibly die if next head position is in snake
-die :: MaybeT (State Game) ()
+die :: MonadState Game m => MaybeT m ()
 die = do
-  MaybeT . fmap guard $ elem <$> (nextHead <$> get) <*> (use snake)
+  MaybeT . fmap guard $ elem <$> nextHead <*> (use snake)
   MaybeT . fmap Just $ dead .= True
 
 -- | Possibly eat food if next head position is food
-eatFood :: MaybeT (State Game) ()
+eatFood :: MonadState Game m => MaybeT m ()
 eatFood = do
-  MaybeT . fmap guard $ (==) <$> (nextHead <$> get) <*> (use food)
+  MaybeT . fmap guard $ (==) <$> nextHead <*> (use food)
   MaybeT . fmap Just $ do
     modifying score (+ 10)
-    get >>= \g -> modifying snake (nextHead g <|)
+    nh <- nextHead
+    modifying snake (nh <|)
     nextFood
 
 -- | Set a valid next food coordinate
-nextFood :: State Game ()
+nextFood :: MonadState Game m => m ()
 nextFood = do
   (f :| fs) <- use foods
   foods .= fs
@@ -99,26 +102,28 @@ nextFood = do
     False -> food .= f
 
 -- | Move snake along in a marquee fashion
-move :: Game -> Game
-move g@Game { _snake = (s :|> _) } = g & snake .~ (nextHead g <| s)
-move _                             = error "Snakes can't be empty!"
+move :: MonadState Game m => m ()
+move = do
+  nh <- nextHead
+  modifying snake $ \(s :|> _) -> nh <| s
 
 -- | Get next head position of the snake
-nextHead :: Game -> Coord
-nextHead Game { _dir = d, _snake = (a :<| _) }
-  | d == North = a & _y %~ (\y -> (y + 1) `mod` height)
-  | d == South = a & _y %~ (\y -> (y - 1) `mod` height)
-  | d == East  = a & _x %~ (\x -> (x + 1) `mod` width)
-  | d == West  = a & _x %~ (\x -> (x - 1) `mod` width)
-nextHead _ = error "Snakes can't be empty!"
+nextHead :: MonadState Game m => m Coord
+nextHead = get <&> \(Game {_snake = (a :<| _), _dir = d}) -> case d of
+  North -> a & _y %~ (\y -> (y + 1) `mod` height)
+  South -> a & _y %~ (\y -> (y - 1) `mod` height)
+  East  -> a & _x %~ (\x -> (x + 1) `mod` width)
+  West  -> a & _x %~ (\x -> (x - 1) `mod` width)
 
 -- | Turn game direction (only turns orthogonally)
 --
 -- Implicitly unpauses yet locks game
-turn :: Direction -> Game -> Game
-turn d g = if g ^. locked
-  then g
-  else g & dir %~ turnDir d & paused .~ False & locked .~ True
+turn :: MonadState Game m => Direction -> m ()
+turn d = do
+  unlessM (use locked) $ do
+    modifying dir (turnDir d)
+    assign paused False
+    assign locked True
 
 turnDir :: Direction -> Direction -> Direction
 turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
@@ -126,7 +131,7 @@ turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
             | otherwise = c
 
 -- | Initialize a paused game with random food location
-initGame :: IO Game
+initGame :: MonadIO m => m Game
 initGame = do
   (f :| fs) <-
     fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
@@ -142,7 +147,7 @@ initGame = do
         , _paused = True
         , _locked = False
         }
-  return $ execState nextFood g
+  pure $ execState nextFood g
 
 fromList :: [a] -> Stream a
 fromList = foldr (:|) (error "Streams must be infinite")
